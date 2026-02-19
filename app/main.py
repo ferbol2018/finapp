@@ -9,17 +9,11 @@ from app.routers import finanzas
 from app.routers import transferencias
 from fastapi.middleware.cors import CORSMiddleware
 
-models.Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
-
-origins = [
-    "https://finanzas-backend-u3gy.onrender.com"
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # puedes dejar "*" en desarrollo
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
