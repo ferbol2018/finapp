@@ -45,7 +45,7 @@ class Movimiento(Base):
     descripcion = Column(String, nullable=True)
 
     # 🔥 AQUÍ VA ESTO
-    transaction_id = Column(String, nullable=True)
+    transaccion_id = Column(String, nullable=True)
 
     fecha = Column(DateTime, default=datetime.utcnow)
 
