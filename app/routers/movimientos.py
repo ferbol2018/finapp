@@ -34,7 +34,7 @@ def crear_movimiento(
         monto = Decimal(movimiento.monto)
 
         # 🔥 LÓGICA FINANCIERA
-        if cuenta.tipo == "credito":
+        if cuenta.tipo_cuenta == "credito":
 
             if movimiento.tipo == "gasto":
 
@@ -70,9 +70,9 @@ def crear_movimiento(
             cuenta_id=cuenta.id,
             tipo=movimiento.tipo,
             monto=monto,
-            descripcion=movimiento.descripcion,
-            categoria=movimiento.categoria,
-            transaction_id = movimiento.transaction_id or None  # 🔥 nuevo
+            descripcion=movimiento.descripcion or "Sin descripción",
+            categoria=movimiento.categoria or "General",
+            transaccion_id = movimiento.transaccion_id or None  # 🔥 nuevo
         )
 
         db.add(cuenta)
@@ -106,10 +106,106 @@ def crear_movimiento(
             "alerta": alerta
         }
 
-    except SQLAlchemyError:
+    except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error al procesar el movimiento")
+        print("ERROR REAL:", e)
+        raise HTTPException(status_code=500, detail=str(e))
     
+
+@router.delete("/{movimiento_id}")
+def eliminar_movimiento(
+    movimiento_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+
+    movimiento = db.query(models.Movimiento).filter(
+        models.Movimiento.id == movimiento_id,
+        models.Movimiento.usuario_id == current_user.id
+    ).first()
+
+    if not movimiento:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+
+    cuenta = movimiento.cuenta
+    monto = movimiento.monto
+
+    # 🔁 REVERTIR EFECTO FINANCIERO
+    if cuenta.tipo_cuenta == "credito":
+
+        if movimiento.tipo == "gasto":
+            cuenta.cupo_disponible += monto
+        else:
+            cuenta.cupo_disponible -= monto
+
+    else:
+        if movimiento.tipo == "gasto":
+            cuenta.saldo += monto
+        else:
+            cuenta.saldo -= monto
+
+    db.delete(movimiento)
+    db.commit()
+
+    return {"mensaje": "Movimiento eliminado correctamente"}
+
+
+@router.put("/{movimiento_id}")
+def editar_movimiento(
+    movimiento_id: int,
+    datos: schemas.MovimientoCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+
+    movimiento = db.query(models.Movimiento).filter(
+        models.Movimiento.id == movimiento_id,
+        models.Movimiento.usuario_id == current_user.id
+    ).first()
+
+    if not movimiento:
+        raise HTTPException(status_code=404, detail="Movimiento no encontrado")
+
+    cuenta = movimiento.cuenta
+
+    # 🔁 1. Revertir efecto anterior
+    monto_anterior = movimiento.monto
+
+    if cuenta.tipo_cuenta == "credito":
+        if movimiento.tipo == "gasto":
+            cuenta.cupo_disponible += monto_anterior
+        else:
+            cuenta.cupo_disponible -= monto_anterior
+    else:
+        if movimiento.tipo == "gasto":
+            cuenta.saldo += monto_anterior
+        else:
+            cuenta.saldo -= monto_anterior
+
+    # 🔥 2. Aplicar nuevo efecto
+    nuevo_monto = Decimal(datos.monto)
+
+    if cuenta.tipo_cuenta == "credito":
+        if datos.tipo == "gasto":
+            cuenta.cupo_disponible -= nuevo_monto
+        else:
+            cuenta.cupo_disponible += nuevo_monto
+    else:
+        if datos.tipo == "gasto":
+            cuenta.saldo -= nuevo_monto
+        else:
+            cuenta.saldo += nuevo_monto
+
+    # 🔄 Actualizar campos
+    movimiento.tipo = datos.tipo
+    movimiento.monto = nuevo_monto
+    movimiento.descripcion = datos.descripcion
+    movimiento.categoria = datos.categoria
+
+    db.commit()
+
+    return {"mensaje": "Movimiento actualizado correctamente"}
+
 
 @router.get("/")
 def obtener_todos_movimientos(
@@ -127,11 +223,11 @@ def obtener_todos_movimientos(
     if not agrupar:
         return movimientos
 
-    # 🔥 Agrupar por transaction_id
+    # 🔥 Agrupar por transaccion_id
     agrupados = defaultdict(list)
 
     for m in movimientos:
-        key = m.transaction_id if m.transaction_id else f"single-{m.id}"
+        key = m.transaccion_id if m.transaccion_id else f"single-{m.id}"
         agrupados[key].append(m)
 
     resultado = []
@@ -139,7 +235,7 @@ def obtener_todos_movimientos(
     for key, grupo in agrupados.items():
 
         # 🔹 Movimiento normal
-        if grupo[0].transaction_id is None:
+        if grupo[0].transaccion_id is None:
             m = grupo[0]
             resultado.append({
                 "id": m.id,
@@ -171,7 +267,7 @@ def obtener_todos_movimientos(
                 descripcion = "Transferencia"
 
             resultado.append({
-                "transaction_id": key,
+                "transaccion_id": key,
                 "tipo": tipo_transferencia,
                 "monto": monto,
                 "descripcion": descripcion,

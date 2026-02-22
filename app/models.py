@@ -19,10 +19,12 @@ class Cuenta(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"))
-    tipo = Column(
+    
+    tipo_cuenta = Column(
     Enum("debito", "ahorro", "inversion", "credito", name="tipo_cuenta"),
     nullable=False
     )   
+
     nombre = Column(String(100))
     saldo = Column(Numeric(14,2), default=0)
     cupo_total = Column(Numeric(14,2), nullable=True)

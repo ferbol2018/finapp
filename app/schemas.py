@@ -14,7 +14,7 @@ class LoginSchema(BaseModel):
 
 
 class CuentaCreate(BaseModel):
-    tipo: str
+    tipo_cuenta: str
     nombre: str = Field(min_length=2, max_length=100)
 
     saldo: Optional[Decimal] = Field(default=None, gt=0)
@@ -25,11 +25,11 @@ class CuentaCreate(BaseModel):
 
         tipos_validos = ["debito", "ahorro", "inversion", "credito"]
 
-        if self.tipo not in tipos_validos:
+        if self.tipo_cuenta not in tipos_validos:
             raise ValueError("Tipo de cuenta inválido")
 
         # 🔹 Cuenta crédito
-        if self.tipo == "credito":
+        if self.tipo_cuenta == "credito":
 
             if self.cupo_total is None:
                 raise ValueError("Cuenta crédito requiere cupo_total")
@@ -52,10 +52,10 @@ class MovimientoCreate(BaseModel):
     cuenta_id: int
     tipo: str
     monto: Decimal
-    descripcion: str
-    categoria: str | None = None
+    descripcion: Optional[str] = "Sin descripción"
+    categoria: Optional[str] = "General"
     # 🔥 Nuevo (opcional)
-    transaction_id: Optional[str] = None
+    transaccion_id: Optional[str] = None
 
 class TransferenciaCreate(BaseModel):
     cuenta_origen_id: int

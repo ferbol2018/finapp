@@ -12,10 +12,10 @@ def crear_cuenta(
     current_user: models.Usuario = Depends(get_current_user)
 ):
 
-    if cuenta.tipo == "credito":
+    if cuenta.tipo_cuenta == "credito":
         nueva_cuenta = models.Cuenta(
             usuario_id=current_user.id,
-            tipo=cuenta.tipo,
+            tipo=cuenta.tipo_cuenta,
             nombre=cuenta.nombre,
             saldo=None,
             cupo_total=cuenta.cupo_total,
@@ -24,7 +24,7 @@ def crear_cuenta(
     else:
         nueva_cuenta = models.Cuenta(
             usuario_id=current_user.id,
-            tipo=cuenta.tipo,
+            tipo=cuenta.tipo_cuenta,
             nombre=cuenta.nombre,
             saldo=cuenta.saldo,
             cupo_total=None,

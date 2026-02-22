@@ -14,13 +14,13 @@ def dashboard_financiero(usuario_id: int, db: Session):
 
     for cuenta in cuentas:
 
-        if cuenta.tipo in ["debito", "ahorro"]:
+        if cuenta.tipo_cuenta in ["debito", "ahorro"]:
             liquidez += float(cuenta.saldo or 0)
 
-        elif cuenta.tipo == "inversion":
+        elif cuenta.tipo_cuenta == "inversion":
             inversiones += float(cuenta.saldo or 0)
 
-        elif cuenta.tipo == "credito":
+        elif cuenta.tipo_cuenta == "credito":
             usado = float((cuenta.cupo_total or 0) - (cuenta.cupo_disponible or 0))
             deuda += usado
 
