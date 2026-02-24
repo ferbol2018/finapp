@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi import Query
 from collections import defaultdict
-
+import re
+from app.database import get_db
+from app.services.finanzas_service import parsear_movimiento
+from datetime import datetime
 
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
@@ -721,3 +724,86 @@ def revisar_alertas(
         })
 
     return alertas
+
+
+@router.post("/registrar-texto")
+def registrar_texto(
+    data: TextoMovimiento,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    texto = data.texto.lower()
+
+    # =========================
+    # 🔥 detectar tipo
+    # =========================
+    ingreso_keywords = ["ingreso", "salario", "pago", "me pagaron", "gané", "recibí"]
+    tipo = "ingreso" if any(k in texto for k in ingreso_keywords) else "gasto"
+
+    # =========================
+    # 🔥 extraer monto
+    # =========================
+    match = re.search(r'\d+[.,]?\d*', texto)
+
+    if not match:
+        raise HTTPException(status_code=400, detail="No se detectó monto")
+
+    monto = float(match.group().replace(",", "").replace(".", ""))
+
+    # =========================
+    # 🔥 inferir categoría
+    # =========================
+    if any(p in texto for p in ["comida", "restaurante", "frutas", "almuerzo", "mercado"]):
+        categoria = "Comida"
+    elif any(p in texto for p in ["uber", "bus", "taxi", "transporte"]):
+        categoria = "Transporte"
+    elif any(p in texto for p in ["arriendo", "luz", "agua", "internet"]):
+        categoria = "Hogar"
+    elif any(p in texto for p in ["salario", "pago", "ingreso"]):
+        categoria = "Ingreso"
+    else:
+        categoria = "General"
+
+    # =========================
+    # 🔥 limpiar descripción
+    # =========================
+    descripcion = texto.replace(match.group(), "").strip()
+
+    # =========================
+    # 🔥 obtener cuenta del usuario
+    # =========================
+    cuenta = db.query(models.Cuenta).filter(
+        models.Cuenta.usuario_id == current_user.id
+    ).first()
+
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="No hay cuenta")
+
+    # =========================
+    # 🔥 crear movimiento
+    # =========================
+    movimiento = models.Movimiento(
+        usuario_id=current_user.id,
+        cuenta_id=cuenta.id,
+        tipo=tipo,
+        monto=monto,
+        descripcion=descripcion,
+        categoria=categoria,
+        fecha=datetime.utcnow()
+    )
+
+    db.add(movimiento)
+    db.commit()
+
+    return {
+        "mensaje": "Movimiento creado",
+        "tipo": tipo,
+        "monto": monto,
+        "categoria": categoria,
+        "descripcion": descripcion
+    }
+
+@router.post("/analizar-texto")
+def analizar_texto(payload: dict):
+    texto = payload.get("texto")
+    return parsear_movimiento(texto)

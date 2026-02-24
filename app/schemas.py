@@ -68,3 +68,6 @@ class TransferenciaUsuarioCreate(BaseModel):
     cuenta_destino_id: int
     monto: Decimal
     descripcion: str | None = None
+
+class TextoMovimiento(BaseModel):
+    texto: str

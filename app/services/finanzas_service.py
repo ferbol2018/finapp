@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models import Cuenta
-
+import re
 
 def dashboard_financiero(usuario_id: int, db: Session):
 
@@ -52,4 +52,45 @@ def dashboard_financiero(usuario_id: int, db: Session):
             "ratio_endeudamiento_porcentaje": ratio_endeudamiento,
             "nivel_salud_financiera": nivel_salud
         }
+    }
+
+
+def parsear_movimiento(texto: str):
+
+    texto_lower = texto.lower()
+
+    # 🔹 detectar tipo
+    ingreso_keywords = ["salario", "ingreso", "me pagaron", "deposito", "gané"]
+
+    tipo = "ingreso" if any(k in texto_lower for k in ingreso_keywords) else "gasto"
+
+    # 🔹 detectar monto
+    match = re.search(r'(\d[\d\.,]*)', texto_lower)
+    monto = float(match.group(1).replace(".", "").replace(",", "")) if match else 0
+
+    # 🔹 detectar categoria
+    categorias = {
+        "Alimentación": ["verduras", "comida", "frutas", "mercado", "olimpica", "exito", "Ara"],
+        "Transporte": ["uber", "bus", "taxi", "gasolina"],
+        "Ocio": ["cine", "juegos", "netflix"],
+        "Salud": ["medico", "farmacia"],
+        "Recibos": ["luz", "agua", "gas", "internet", "plan movil"],
+    }
+
+    categoria_detectada = "General"
+
+    for cat, palabras in categorias.items():
+        if any(p in texto_lower for p in palabras):
+            categoria_detectada = cat
+            break
+
+    # 🔹 limpiar descripcion
+    descripcion = re.sub(r'\d[\d\.,]*', '', texto)
+    descripcion = descripcion.replace("por", "").strip()
+
+    return {
+        "tipo": tipo,
+        "monto": monto,
+        "categoria": categoria_detectada,
+        "descripcion": descripcion
     }
