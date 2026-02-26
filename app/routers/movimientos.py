@@ -725,10 +725,9 @@ def revisar_alertas(
 
     return alertas
 
-
 @router.post("/registrar-texto")
 def registrar_texto(
-    data: TextoMovimiento,
+    data: schemas.TextoMovimiento,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(get_current_user)
 ):
@@ -767,7 +766,22 @@ def registrar_texto(
     # =========================
     # 🔥 limpiar descripción
     # =========================
+    descripcion = texto.lower()
+
+    # quitar monto 
+    descripcion = re.sub(r"\$?\s?\d[\d\.,]*", "", descripcion)
+
+    # quitar palabras basura 
+    basura = ["por", "de", "del", "la", "el", "los", "las"] 
+    for b in basura: 
+        descripcion = re.sub(rf"\b{b}\b", "", descripcion)
+
+    # limpiar espacios 
+    descripcion = re.sub(r"\s+", " ", descripcion).strip()
+
     descripcion = texto.replace(match.group(), "").strip()
+
+    descripcion = descripcion.capitalize()
 
     # =========================
     # 🔥 obtener cuenta del usuario
@@ -807,3 +821,4 @@ def registrar_texto(
 def analizar_texto(payload: dict):
     texto = payload.get("texto")
     return parsear_movimiento(texto)
+
