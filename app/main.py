@@ -16,7 +16,7 @@ app = FastAPI(default_response_class=JSONResponse)
     "http://localhost:49744",
     "http://localhost",
     "http://127.0.0.1:49744",
-] """
+]  """
 
 app.add_middleware(
     CORSMiddleware,
