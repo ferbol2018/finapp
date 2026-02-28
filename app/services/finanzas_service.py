@@ -85,7 +85,7 @@ def parsear_movimiento(texto: str):
             break
 
     # 🔹 limpiar descripcion
-    descripcion = re.sub(r'\d[\d\.,]*', '', texto)
+    descripcion = re.sub(r'\$?\s?\d[\d\.,]*', '', texto)
     descripcion = descripcion.replace("por", "").strip()
 
     return {
